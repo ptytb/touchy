@@ -1,0 +1,6 @@
+autoclass
+pyglet
+https://github.com/jorgecarleitao/pyglet-gui.git
+mido
+musthe
+dill
