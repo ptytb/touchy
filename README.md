@@ -1,4 +1,6 @@
 
+![screenshot](https://raw.github.com/ptytb/touchy/res/res/touchy.png)
+
 ### install & run
 
 ```
