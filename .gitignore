@@ -1,3 +1,4 @@
-﻿.idea
+.idea
 settings.pickle
 __pycache__
+dist

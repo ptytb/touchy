@@ -1,4 +1,5 @@
 import pyglet
+import pyglet.graphics
 from pyglet_gui.buttons import Checkbox, OneTimeButton
 from pyglet_gui.containers import VerticalContainer, Wrapper, HorizontalContainer, GridContainer
 from pyglet_gui.gui import Frame, SectionHeader, Label
@@ -262,8 +263,8 @@ class MainManager(Manager):
             controller.clear_scale_cache()
             controller.calculate_grid()
 
-        if __debug__:
-            fps_display = pyglet.clock.ClockDisplay()
+        # if __debug__:
+        #     fps_display = pyglet.clock.ClockDisplay()
         
         @window.event
         def on_draw():
@@ -275,8 +276,8 @@ class MainManager(Manager):
             if controller.gui_visible:
                 batch.draw()
             
-            if __debug__:
-                fps_display.draw()
+            # if __debug__:
+            #     fps_display.draw()
 
         @window.event
         def on_text(text):

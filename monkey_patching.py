@@ -1,18 +1,15 @@
 import ctypes
 
 import pyglet
-from autoclass import autoclass
 from pyglet.input.wintab import WintabTabletCanvas
 from pyglet_gui.constants import ANCHOR_TOP_LEFT, VALIGN_TOP
 from pyglet_gui.containers import VerticalContainer, HorizontalContainer, Container
 from pyglet_gui.controllers import Selector
-from pyglet_gui.core import Viewer
 from pyglet_gui.gui import Frame, Label
 from pyglet_gui.manager import Manager as Manager
 from pyglet_gui.option_selectors import OptionButton
 from pyglet.libs.win32 import libwintab as wintab
 from pyglet_gui.scrollable import Scrollable
-from pyglet_gui.scrollbars import ScrollBar
 from pyglet_gui.sliders import Slider
 from pyglet_gui.option_selectors import Dropdown as _Dropdown
 from pyglet_gui.text_input import TextInput as _TextInput

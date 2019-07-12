@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+autoclass = "*"
+pyglet = "*"
+"pyglet_gui" = {git = "https://github.com/jorgecarleitao/pyglet-gui.git"}
+mido = "*"
+musthe = "*"
+dill = "*"
+mini_lambda = "*"
+six = "*"
+python_rtmidi = "*"
+
+[dev-packages]
+nuitka = "*"
+
+[requires]
+python_version = "3.6"

@@ -9,6 +9,10 @@ from itertools import groupby
 from autoclass import autoclass, setter_override
 import mido
 import pyglet
+import pyglet.input
+import pyglet.graphics
+import pyglet.window
+import pyglet.clock
 from typing import Dict, Tuple
 
 from pyglet_gui.containers import Container
