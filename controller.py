@@ -280,10 +280,14 @@ class Controller:
 
             if note_axis:
                 note = self.get_rule_value(note_axis, axis_values, domains)
+                note = self.clamp_rule_value(note_axis, note)
                 if note:
                     note_kwargs = {"channel": int(channel)}
                     if note_velocity_axis:
-                        note_kwargs["velocity"] = self.get_rule_value(note_velocity_axis, axis_values, domains)
+                        velocity = self.get_rule_value(note_velocity_axis, axis_values, domains)
+                        velocity = self.clamp_rule_value(note_velocity_axis, velocity)
+                        note_kwargs["velocity"] = velocity
+                        
                     midi_message = mido.Message(type='note_on', note=note, **note_kwargs)
                     self.port.send(midi_message)
                     
@@ -323,10 +327,16 @@ class Controller:
             return
     
         if 'step' in rule._fields:
-            value = max(min(int(rule.value + value), int(rule.range_to)), int(rule.range_from))
+            value = self.clamp_rule_value(rule, rule.value + value)
             model.update_row(table_row_mouse_wheel, rule, rule._replace(value=value))
         else:
+            value = self.clamp_rule_value(rule, value)
             self.generate_midi_control_message_from_value(rule, value)
+        
+    def clamp_rule_value(self, rule, value):
+        if not value:
+            return value
+        return max(min(int(value), int(rule.range_to)), int(rule.range_from))
     
     def generate_midi_control_message_from_value(self, rule, value):
         midi_message = None
