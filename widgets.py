@@ -271,7 +271,7 @@ class MainManager(Manager):
             window.clear()
 
             if self.vertex_list:
-                self.vertex_list.draw(pyglet.gl.GL_LINES)
+                self.vertex_list.draw(pyglet.gl.GL_QUADS)
                 
             if controller.gui_visible:
                 batch.draw()

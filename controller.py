@@ -2,9 +2,8 @@ from datetime import datetime, timedelta
 
 import math
 import operator
-from collections import defaultdict
 from functools import reduce
-from itertools import groupby
+from itertools import groupby, chain, repeat
 
 from autoclass import autoclass, setter_override
 import mido
@@ -13,9 +12,7 @@ import pyglet.input
 import pyglet.graphics
 import pyglet.window
 import pyglet.clock
-from typing import Dict, Tuple
 
-from pyglet_gui.containers import Container
 
 from bindings import bind_tablet_key, bind_tablet_x, bind_tablet_y, bind_tablet_p, bind_mouse_key, bind_mouse_x, \
     bind_mouse_y, binding_buttons, binding_labels, binding_devices, bindings_axle, Binding, \
@@ -207,11 +204,11 @@ class Controller:
         if not isinstance(binding, RowBinding):
             binding = None
 
-        if binding and (binding.message_type != 'note' or not binding.range_from or not binding.range_to):
+        if binding and (binding.message_type != 'note' or not binding.range_from or not binding.range_to or not binding.enabled):
             binding = None
 
         if not binding:
-            note_axes = list(filter(lambda b: b.message_type == 'note' and b.range_from and b.range_to, bindings_axle))
+            note_axes = list(filter(lambda b: b.enabled and b.message_type == 'note' and b.range_from and b.range_to, bindings_axle))
             if len(note_axes):
                 binding = note_axes[0]
                 
@@ -219,20 +216,30 @@ class Controller:
             return
         
         width, height = self.window.width, self.window.height
-        domain = int(binding.range_to) - int(binding.range_from)
-        step = width // domain
+        range_to, range_from = int(binding.range_to), int(binding.range_from)
+        domain = range_to - range_from
+        step = int(width / domain)
         
         if step < 1:
             return
 
-        count = width // step
+        count = domain + 1
         
         if count < 1:
             return
+    
+        def odd(x):
+            return x & 1
         
-        lines = reduce(operator.concat, ((step * i, 0, step * i, height) for i in range(1, count + 1)))
-        colors = reduce(operator.concat, ((150, 20, 20, 100, 5, 5) for i in range(1, count + 1)))
-        vertex_list = pyglet.graphics.vertex_list(count * 2, ('v2i', lines), ('c3B', colors))
+        def white(x):
+            return x % 12 in (0, 2, 4, 5, 7, 9, 11)
+        
+        xs = list(chain((0,), reduce(operator.add, [list(repeat(i, 2)) for i in range(1, count)]), (count,)))
+        lines = reduce(operator.concat, ((step * i, 0 if not odd(i) else height, step * i, height if not odd(i) else 0)
+                                         for i in xs))
+        colors = reduce(operator.concat, ((100, 100, 100, 80, 80, 80) if white(i // 2 + range_from) else (0, 0, 0, 0, 0, 0)
+                                          for i in range(len(xs))))
+        vertex_list = pyglet.graphics.vertex_list(2 * len(xs), ('v2i', lines), ('c3B', colors))
         self.manager.vertex_list = vertex_list
     
     def open_midi_port(self, name, *, binding):
