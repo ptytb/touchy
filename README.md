@@ -3,7 +3,7 @@
 
 ### binaries
 
-[Touchy for Windows 64-bit](https://github.com/ptytb/touchy/releases/download/v0.1/touchy-bin-win64.zip)
+[Touchy for Windows 64-bit](https://github.com/ptytb/touchy/releases/download/v0.2/touchy-bin-win64.zip)
 
 ### install & run
 
