@@ -1,3 +1,4 @@
+from collections import namedtuple
 from datetime import datetime, timedelta
 
 import math
@@ -17,9 +18,25 @@ import pyglet.clock
 from bindings import bind_tablet_key, bind_tablet_x, bind_tablet_y, bind_tablet_p, bind_mouse_key, bind_mouse_x, \
     bind_mouse_y, binding_buttons, binding_labels, binding_devices, bindings_axle, Binding, \
     model, RowBinding, bind_mouse_wheel_x, bind_mouse_wheel_y, table_row_mouse_wheel, bind_mouse_wheel_rows
+from windows_ink import pointerFlagNames, penTypeFlagNames
 from midi_codes import MIDI_CONTROL_CODES
 from scale import ScaleLinear
 from stateful_inputs import ThresholdAxes, AccumulatingAxes
+
+WindowsInkCursor = namedtuple("WindowsInkCursor", ["name"])
+
+
+class WindowsInkInput:
+    source_name = "ink"
+    
+    def __init__(self):
+        self.cursors = list(map(WindowsInkCursor, ['pen', 'barrel']))  # list(map(WindowsInkCursor, penTypeFlagNames.values()))
+        self.buttons = ['first', 'second', 'third', 'fourth', 'fifth', 'in_range', 'none']  # list(pointerFlagNames.values())
+        self.open = lambda _: None
+    
+    @property
+    def name(self):
+        return WindowsInkInput.source_name
 
 
 @autoclass
@@ -36,13 +53,14 @@ class Controller:
         
         self.midi_control_types = list(MIDI_CONTROL_CODES.keys())
         
-        self.tablets = pyglet.input.get_tablets()
+        self.tablets = self.get_tablets()
         self.tablet_names = [tablet.name for tablet in self.tablets]
         self.selected_tablet_index = 0
         if self.tablets and len(self.tablets):
             self.selected_tablet = self.tablets[self.selected_tablet_index]
             self.tablet_cursor_names = list(set([cursor.name for cursor in (self.selected_tablet.cursors)]))
-            self.tablet_button_names = list(map(lambda i: str(i), list(range(len(self.selected_tablet.cursors)))))
+            # self.tablet_button_names = list(map(lambda i: str(i), list(range(len(self.selected_tablet.cursors)))))
+            self.tablet_button_names = self.selected_tablet.buttons
         else:
             self.selected_tablet = None
             self.tablet_cursor_names = []
@@ -50,7 +68,7 @@ class Controller:
 
         # mouses = list(filter(lambda d: 'ouse' in d.name, pyglet.input.get_devices()))
         # buttons = list(filter(lambda b: 'utton' in b.raw_name, mouses[0].controls))
-        mouse_button_names = [str(i) for i in range(8)]
+        mouse_button_names = [str(i) for i in range(8)]  # 1 bit for each button
         self.mouse_button_names = mouse_button_names
         
         self._canvas = None
@@ -130,7 +148,40 @@ class Controller:
                 self.process_axes_input(source='mouse', cursor='wheel', button=0,
                                         axis_values={"x": scroll_x, "y": scroll_y},
                                         domains={"x": value_range, "y": value_range})
-        
+
+        @self.window.event
+        def on_ink_begin():
+            pass
+            
+        @self.window.event
+        def on_ink_end():
+            self.midi_all_notes_off()
+            self.reset_thresholds()
+
+        @self.window.event
+        def on_ink(x, y, pressure, buttons, pen_type):
+            # print(buttons, pen_type)
+            
+            if self.selected_tablet_index != 0:
+                return
+            
+            button = list(filter(lambda x: x in ['first', 'second', 'third', 'fourth', 'fifth', 'in_range'], buttons))
+            button = button[-1] if len(button) else 'none'
+            
+            cursor = pen_type[-1] if len(pen_type) else 'pen'
+
+            if binding_buttons.log_input_on:
+                binding_labels.mouse_status = 'on_ink(%r, %r, %r, %r, %r)' % (x, y, pressure, button, cursor)
+
+            # self.saturate_thresholds()
+            self.process_axes_input(source=WindowsInkInput.source_name, cursor=cursor, button=button,
+                                    axis_values={"x": x, "y": y, "z": pressure},
+                                    domains={
+                                        "x": (0, self.window.width),
+                                        "y": (0, self.window.height),
+                                        "z": (0, 1024)
+                                    })
+
     def update_widgets(self):
         @self.window.event
         def on_close():
@@ -163,6 +214,10 @@ class Controller:
     def toggle_tablet_input(self, is_on, *, binding):
         if is_on:
             canvas = self.tablets[self.selected_tablet_index].open(self.window)
+            
+            if not canvas:
+                return
+            
             self._canvas = canvas
             name = self.selected_tablet.name
 
@@ -479,5 +534,13 @@ class Controller:
             binding.listen('range_to', controller.clear_scale_cache)
             binding.listen('threshold', lambda *args, **kwargs: self._threshold_axes.clear)
             
+    def get_tablets(self):
+        tablets = pyglet.input.get_tablets()
+        
+        windowsInkInput = WindowsInkInput()
+        tablets.insert(0, windowsInkInput)
+        
+        return tablets
+
 
 controller = Controller()

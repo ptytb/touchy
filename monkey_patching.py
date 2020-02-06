@@ -1,21 +1,56 @@
 import ctypes
 
 import pyglet
-from pyglet.input.wintab import WintabTabletCanvas
 from pyglet_gui.constants import ANCHOR_TOP_LEFT, VALIGN_TOP
 from pyglet_gui.containers import VerticalContainer, HorizontalContainer, Container
 from pyglet_gui.controllers import Selector
 from pyglet_gui.gui import Frame, Label
 from pyglet_gui.manager import Manager as Manager
 from pyglet_gui.option_selectors import OptionButton
-from pyglet.libs.win32 import libwintab as wintab
 from pyglet_gui.scrollable import Scrollable
 from pyglet_gui.sliders import Slider
 from pyglet_gui.option_selectors import Dropdown as _Dropdown
 from pyglet_gui.text_input import TextInput as _TextInput
 from pyglet_gui.buttons import Button, OneTimeButton, Checkbox
 
-lib = wintab.lib
+try:
+    # original WACOM drivers branch: normalize pressure to range [0, 1]
+    
+    from pyglet.input.wintab import WintabTabletCanvas
+    from pyglet.libs.win32 import libwintab as wintab
+    lib = wintab.lib
+
+    @pyglet.window.win32.Win32EventHandler(0)
+    def monkey_patching_WintabTabletCanvas_event_wt_packet(self, msg, wParam, lParam):
+        if lParam != self._context:
+            return
+    
+        packet = wintab.PACKET()
+        if lib.WTPacket(self._context, wParam, ctypes.byref(packet)) == 0:
+            return
+    
+        if not packet.pkChanged:
+            return
+    
+        window_x, window_y = self.window.get_location()  # TODO cache on window
+        window_y = self.window.screen.height - window_y - self.window.height
+        x = packet.pkX - window_x
+        y = packet.pkY - window_y
+        pressure = (packet.pkNormalPressure + self._pressure_bias) * \
+                   self._pressure_scale
+    
+        if self._current_cursor is None:
+            self._set_current_cursor(packet.pkCursor)
+    
+        buttons = packet.pkButtons
+        self.dispatch_event('on_motion', self._current_cursor,
+                            x, y, pressure, buttons)
+
+
+    WintabTabletCanvas._event_wt_packet = monkey_patching_WintabTabletCanvas_event_wt_packet
+
+except:
+    pass
 
 
 def monkey_patching_OptionButton_on_mouse_press(self, x, y, button, modifiers):
@@ -24,36 +59,6 @@ def monkey_patching_OptionButton_on_mouse_press(self, x, y, button, modifiers):
 
 
 OptionButton.on_mouse_press = monkey_patching_OptionButton_on_mouse_press
-
-
-@pyglet.window.win32.Win32EventHandler(0)
-def monkey_patching_WintabTabletCanvas_event_wt_packet(self, msg, wParam, lParam):
-    if lParam != self._context:
-        return
-    
-    packet = wintab.PACKET()
-    if lib.WTPacket(self._context, wParam, ctypes.byref(packet)) == 0:
-        return
-    
-    if not packet.pkChanged:
-        return
-    
-    window_x, window_y = self.window.get_location() # TODO cache on window
-    window_y = self.window.screen.height - window_y - self.window.height
-    x = packet.pkX - window_x
-    y = packet.pkY - window_y
-    pressure = (packet.pkNormalPressure + self._pressure_bias) * \
-               self._pressure_scale
-    
-    if self._current_cursor is None:
-        self._set_current_cursor(packet.pkCursor)
-    
-    buttons = packet.pkButtons
-    self.dispatch_event('on_motion', self._current_cursor,
-                        x, y, pressure, buttons)
-
-
-WintabTabletCanvas._event_wt_packet = monkey_patching_WintabTabletCanvas_event_wt_packet
 
 
 def monkey_patching_Slider_set_value(self, value):
