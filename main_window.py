@@ -38,13 +38,14 @@ class MainWindow(pyglet.window.Window):
         ScreenToClient(self._hwnd, byref(pointer_pen_info.pointerInfo.ptPixelLocation))
         buttons = get_buttons(pointer_pen_info.pointerInfo.pointerFlags)
         pen_type = get_pen_type(pointer_pen_info.penFlags)
+        pressure = pointer_pen_info.pressure / 1024
         
         if 'in_range' not in buttons:
             self.dispatch_event('on_ink_end')
         elif 'new' in buttons:
             self.dispatch_event('on_ink_begin')
-
-        self.dispatch_event('on_ink', location.x, location.y, pointer_pen_info.pressure,
+        
+        self.dispatch_event('on_ink', location.x, location.y, pressure,
                             buttons, pen_type)
 
         return 0

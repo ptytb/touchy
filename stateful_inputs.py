@@ -20,24 +20,28 @@ class StatefulAxes:
             self.axis_values[f'td{axis}'] += abs(d)
         return axis_values
     
-    def reset(self):
-        for axis in ['tx', 'ty', 'tz', 'tdx', 'tdy', 'tdz']:
-            self.axis_values[axis] = 0
+    def reset(self, axis=None):
+        if axis:
+            for axis in [f't{axis}', f'td{axis}']:
+                self.axis_values[axis] = 0
+        else:
+            for axis in ['tx', 'ty', 'tz', 'tdx', 'tdy', 'tdz']:
+                self.axis_values[axis] = 0
 
 
 @autoclass
 class ThresholdAxes(StatefulAxes):
     
-    def __init__(self, threshold=0):
+    def __init__(self, rule_axis, threshold=0):
         super().__init__()
     
     def value(self, axis_values):
         axis_values = super(ThresholdAxes, self).value(axis_values)
-        ignore = all(map(lambda axis: self.axis_values[axis] < self.threshold, ['tdx', 'tdy', 'tdz']))
-        if ignore:
+        # ignore = all(map(lambda axis: self.axis_values[axis] < self.threshold, ['tdx', 'tdy', 'tdz']))
+        if self.axis_values[f'td{self.rule_axis}'] < self.threshold:
             return None
         else:
-            self.reset()
+            self.reset(self.rule_axis)
             return axis_values
     
     def saturate(self):

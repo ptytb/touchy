@@ -106,7 +106,7 @@ class MainManager(Manager):
                         Label("to"),
                         bind_tablet_p.bind(TextInput(), 'range_to'),
                         Label("threshold"),
-                        bind_tablet_p.bind(HorizontalSlider(min_value=0.0, max_value=1.0, steps=15), 'threshold'),
+                        bind_tablet_p.bind(HorizontalSlider(min_value=0.0, max_value=1.0, steps=20), 'threshold'),
                     ],
                 ]),
             ]))),

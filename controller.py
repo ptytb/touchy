@@ -33,7 +33,8 @@ class WindowsInkInput:
         self.cursors = list(map(WindowsInkCursor, ['pen', 'barrel']))  # list(map(WindowsInkCursor, penTypeFlagNames.values()))
         self.buttons = ['first', 'second', 'third', 'fourth', 'fifth', 'in_range', 'none']  # list(pointerFlagNames.values())
         self.open = lambda _: None
-    
+        self.close = lambda _: None
+
     @property
     def name(self):
         return WindowsInkInput.source_name
@@ -156,7 +157,7 @@ class Controller:
         @self.window.event
         def on_ink_end():
             self.midi_all_notes_off()
-            self.reset_thresholds()
+            self.saturate_thresholds()
 
         @self.window.event
         def on_ink(x, y, pressure, buttons, pen_type):
@@ -171,15 +172,14 @@ class Controller:
             cursor = pen_type[-1] if len(pen_type) else 'pen'
 
             if binding_buttons.log_input_on:
-                binding_labels.mouse_status = 'on_ink(%r, %r, %r, %r, %r)' % (x, y, pressure, button, cursor)
+                binding_labels.mouse_status = 'on_ink(%r, %r, %r, %r, %r)' % (x, y, round(pressure, 3), button, cursor)
 
-            # self.saturate_thresholds()
             self.process_axes_input(source=WindowsInkInput.source_name, cursor=cursor, button=button,
                                     axis_values={"x": x, "y": y, "z": pressure},
                                     domains={
                                         "x": (0, self.window.width),
                                         "y": (0, self.window.height),
-                                        "z": (0, 1024)
+                                        "z": (0, 1)
                                     })
 
     def update_widgets(self):
@@ -376,7 +376,7 @@ class Controller:
         else:
             threshold_axes = self._threshold_axes.get(rule)
             if not threshold_axes:
-                threshold_axes = ThresholdAxes(rule.threshold if rule.message_type != 'velocity' else 0)
+                threshold_axes = ThresholdAxes(rule.axis, rule.threshold if rule.message_type != 'velocity' else 0)
                 self._threshold_axes[rule] = threshold_axes
             values = threshold_axes.value(axis_values)
 
