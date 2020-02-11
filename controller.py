@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, deque
 from datetime import datetime, timedelta
 
 import math
@@ -81,6 +81,8 @@ class Controller:
         self.pull_back_handlers = dict()
         
         self._last_canvas_button = None
+        
+        self._play_note_history = deque(maxlen=36)
         
     def clear_scale_cache(self, *args, **kwargs):
         self._scale_cache.clear()
@@ -286,14 +288,33 @@ class Controller:
         def odd(x):
             return x & 1
         
-        def white(x):
+        def white_key(x):
             return x % 12 in (0, 2, 4, 5, 7, 9, 11)
         
         xs = list(chain((0,), reduce(operator.add, [list(repeat(i, 2)) for i in range(1, count)]), (count,)))
         lines = reduce(operator.concat, ((step * i, 0 if not odd(i) else height, step * i, height if not odd(i) else 0)
                                          for i in xs))
-        colors = reduce(operator.concat, ((100, 100, 100, 80, 80, 80) if white(i // 2 + range_from) else (0, 0, 0, 0, 0, 0)
-                                          for i in range(len(xs))))
+        
+        def played_note_index_in_history(note):
+            try:
+                last_i = next((i for i, x in enumerate(reversed(self._play_note_history)) if note == x))
+                return len(self._play_note_history) - 1 - last_i
+            except StopIteration:
+                return None
+            
+        highlight_scale = ScaleLinear((0, self._play_note_history.maxlen), (50, 150))
+        
+        def get_note_color(i):
+            note = i // 2 + range_from
+            note_index = played_note_index_in_history(note)
+            played_note_color_offset = highlight_scale.value(note_index) if note_index is not None else 0
+            if white_key(note):
+                return played_note_color_offset + 100, 100, 100, 80, 80, 80
+            else:
+                return played_note_color_offset, 0, 0, 0, 0, 0
+        
+        colors = reduce(operator.concat, (get_note_color(i) for i in range(len(xs))))
+        
         vertex_list = pyglet.graphics.vertex_list(2 * len(xs), ('v2i', lines), ('c3B', colors))
         self.manager.vertex_list = vertex_list
     
@@ -350,8 +371,7 @@ class Controller:
                         velocity = self.clamp_rule_value(note_velocity_axis, velocity)
                         note_kwargs["velocity"] = velocity
                         
-                    midi_message = mido.Message(type='note_on', note=note, **note_kwargs)
-                    self.port.send(midi_message)
+                    self.generate_midi_note(note, **note_kwargs)
                     
                     if binding_buttons.log_output_on:
                         binding_labels.output_status = str(midi_message)
@@ -400,6 +420,19 @@ class Controller:
             return value
         return max(min(int(value), int(rule.range_to)), int(rule.range_from))
     
+    def generate_midi_note(self, note, **kwargs):
+        midi_message = mido.Message(type='note_on', note=note, **kwargs)
+        self.port.send(midi_message)
+        
+        prev_note = None
+        try:
+            prev_note = self._play_note_history[-1]
+        except IndexError:
+            pass
+        if prev_note != note:
+            self._play_note_history.append(note)
+            self.calculate_grid()
+
     def generate_midi_control_message_from_value(self, rule, value):
         midi_message = None
         kwargs = {"channel": int(rule.channel)}
