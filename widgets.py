@@ -261,6 +261,7 @@ class MainManager(Manager):
         @window.event
         def on_resize(width, height):
             controller.clear_scale_cache()
+            controller.note_labels.clear()
             controller.calculate_grid()
 
         # if __debug__:
@@ -275,6 +276,9 @@ class MainManager(Manager):
                 
             if controller.gui_visible:
                 batch.draw()
+            
+            for label in controller.note_labels:
+                label.draw()
             
             # if __debug__:
             #     fps_display.draw()

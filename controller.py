@@ -13,7 +13,7 @@ import pyglet.input
 import pyglet.graphics
 import pyglet.window
 import pyglet.clock
-
+from pyglet.text import Label
 
 from bindings import bind_tablet_key, bind_tablet_x, bind_tablet_y, bind_tablet_p, bind_mouse_key, bind_mouse_x, \
     bind_mouse_y, binding_buttons, binding_labels, binding_devices, bindings_axle, Binding, \
@@ -24,6 +24,14 @@ from scale import ScaleLinear
 from stateful_inputs import ThresholdAxes, AccumulatingAxes
 
 WindowsInkCursor = namedtuple("WindowsInkCursor", ["name"])
+
+
+def odd(x):
+    return x & 1
+
+
+def is_white_key(x):
+    return x % 12 in (0, 2, 4, 5, 7, 9, 11)
 
 
 class WindowsInkInput:
@@ -83,6 +91,8 @@ class Controller:
         self._last_canvas_button = None
         
         self._play_note_history = deque(maxlen=36)
+        
+        self.note_labels = []
         
     def clear_scale_cache(self, *args, **kwargs):
         self._scale_cache.clear()
@@ -285,12 +295,6 @@ class Controller:
         if count < 1:
             return
     
-        def odd(x):
-            return x & 1
-        
-        def white_key(x):
-            return x % 12 in (0, 2, 4, 5, 7, 9, 11)
-        
         xs = list(chain((0,), reduce(operator.add, [list(repeat(i, 2)) for i in range(1, count)]), (count,)))
         lines = reduce(operator.concat, ((step * i, 0 if not odd(i) else height, step * i, height if not odd(i) else 0)
                                          for i in xs))
@@ -308,7 +312,7 @@ class Controller:
             note = i // 2 + range_from
             note_index = played_note_index_in_history(note)
             played_note_color_offset = highlight_scale.value(note_index) if note_index is not None else 0
-            if white_key(note):
+            if is_white_key(note):
                 return played_note_color_offset + 100, 100, 100, 80, 80, 80
             else:
                 return played_note_color_offset, 0, 0, 0, 0, 0
@@ -317,7 +321,33 @@ class Controller:
         
         vertex_list = pyglet.graphics.vertex_list(2 * len(xs), ('v2i', lines), ('c3B', colors))
         self.manager.vertex_list = vertex_list
+        
+        if len(self.note_labels) != len(xs):
+            self.update_note_labels(xs, range_from, step)
+        
+    def update_note_labels(self, xs, range_from, step):
+        def get_note_label(i):
+            note = i + range_from
+            octave = note // 12
+            text = {
+                       0: 'C',
+                       1: 'C#',
+                       2: 'D',
+                       3: 'D#',
+                       4: 'E',
+                       5: 'F',
+                       6: 'F#',
+                       7: 'G',
+                       8: 'G#',
+                       9: 'A',
+                       10: 'A#',
+                       11: 'H',
+                   }.get(note % 12) + str(octave)
+            color = (0, 0, 0, 255) if is_white_key(note) else (255, 255, 255, 255)
+            return Label(text, x=i * step + step // 2, width=step, color=color, bold=True, anchor_x='center', anchor_y='bottom')
     
+        self.note_labels = [get_note_label(x) for x in range(len(xs))]
+
     def open_midi_port(self, name, *, binding):
         if self.port:
             self.port.close()
@@ -372,9 +402,6 @@ class Controller:
                         note_kwargs["velocity"] = velocity
                         
                     self.generate_midi_note(note, **note_kwargs)
-                    
-                    if binding_buttons.log_output_on:
-                        binding_labels.output_status = str(midi_message)
                 
             for rule in control_axes:
                 self.generate_midi_control_message(rule, axis_values, domains)
@@ -423,7 +450,10 @@ class Controller:
     def generate_midi_note(self, note, **kwargs):
         midi_message = mido.Message(type='note_on', note=note, **kwargs)
         self.port.send(midi_message)
-        
+
+        if binding_buttons.log_output_on:
+            binding_labels.output_status = str(midi_message)
+
         prev_note = None
         try:
             prev_note = self._play_note_history[-1]
