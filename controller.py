@@ -392,7 +392,7 @@ class Controller:
                     note_velocity_axis = rule
 
             if note_axis:
-                note = self.get_rule_value(note_axis, axis_values, domains)
+                note = self.get_rule_value(note_axis, axis_values, domains, is_note=True)
                 note = self.clamp_rule_value(note_axis, note)
                 if note:
                     note_kwargs = {"channel": int(channel)}
@@ -406,15 +406,28 @@ class Controller:
             for rule in control_axes:
                 self.generate_midi_control_message(rule, axis_values, domains)
 
-    def get_rule_value(self, rule, axis_values, domains):
+    def get_rule_value(self, rule, axis_values, domains, is_note=False):
         is_incremental = 'step' in rule._fields
 
-        scale = self._scale_cache.get(rule, None)
-        if not scale:
+        cached_pair = self._scale_cache.get(rule, None)
+        if cached_pair:
+            old_domains, scale = cached_pair
+        else:
+            old_domains, scale = None, None
+            
+        if not scale or old_domains != domains:
             range_ = (int(rule.range_from), int(rule.range_to))
-            domain = domains[rule.axis] if not is_incremental else range_
+            
+            if not is_note:
+                domain = domains[rule.axis] if not is_incremental else range_
+            else:
+                r = range_[1] - range_[0]
+                d = domains[rule.axis][1]
+                step = int(d / r)
+                domain = (0, step * r)
+            
             scale = ScaleLinear(domain, range_)
-            self._scale_cache[rule] = scale
+            self._scale_cache[rule] = domains, scale
 
         if is_incremental:
             values = {axis: value * int(rule.step) for axis, value in axis_values.items()}
