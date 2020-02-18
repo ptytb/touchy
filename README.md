@@ -3,7 +3,7 @@
 
 ### binaries
 
-[Touchy for Windows 64-bit](https://github.com/ptytb/touchy/releases/download/v0.2/touchy-bin-win64.zip)
+[Touchy for Windows 64-bit](https://github.com/ptytb/touchy/releases/download/v0.3/touchy-bin-win64.zip)
 
 ### install & run
 
@@ -23,3 +23,6 @@ build_exe.cmd
 ### virtual midi ports
 
 Use [loopmidi](http://www.tobias-erichsen.de/software/loopmidi.html) to route MIDI output to [VCV Rack](https://github.com/VCVRack/Rack), VST plugins or whatever.
+
+### open source drivers
+Windows Ink tablet pen pressure support available through [TabletDriver](https://github.com/hawku/TabletDriver)
